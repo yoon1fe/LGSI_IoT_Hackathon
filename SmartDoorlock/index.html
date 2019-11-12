@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        h1 {
+            text-align: center; color: white; font-size: 40px; font-weight: bold;
+        }
+
+        #cameraVideo {
+            border: 3px solid white; width: 640px; height: 480px; object-fit: fill; margin-right:20px;
+        }
+
+        #imagePlace {
+            border: 3px solid blue; width: 640px; height: 480px; margin-left:20px;
+        }
+
+        #statusText {
+            font-size: 24px; font-weight: bold; color: white;
+        }
+
+    </style>
+    <script language="javascript" src="webOSjs-0.1.0/webOS.js"></script>
+    <script>
+     var isPlayingSHM = false;
+     var eventListenerAdded = false;
+     var options = {};
+     var camera_id = "camera1";
+     var handle_;
+     var key = 7010;
+     var uri1 = "camera://com.webos.service.camera2/";
+     var CameraOption;
+     options.mediaTransportType = "CAMERA";
+     options.width = 840;
+     options.height = 630;
+     options.frameRate = 30;
+     options.format = "JPEG";
+     options.streamType = "JPEG";
+     options.memType = "shmem";
+     options.memSrc =  "7010";
+     var media_id = "media_id1";
+     var refresh = true;
+
+     function playWithCamSHM() {
+         console.log("playWithCamSHM called");
+         //document.getElementById("demo1").innerHTML = "getCameraList";
+         //Calling the Camera service getCameraList API
+         var request = webOS.service.request("luna://com.webos.service.camera2", {
+             method: "getCameraList",
+             parameters: {},
+             onFailure: function(inError) {
+                 console.log(JSON.stringify(inError));
+                 //document.getElementById("demo1").innerHTML = "Error " + JSON.stringify(inError);
+             },
+             onComplete: function(inResponse) {
+                 console.log(JSON.stringify(inResponse));
+                 //document.getElementById("demo1").innerHTML = "CameraList:" + JSON.stringify(inResponse);
+                 // Sucess with return with camera id.
+
+                 if (inResponse["deviceList"].length <= 0) {
+                     document.getElementById("demo1").innerHTML = "Error : Device list is Empty!!!";
+                 } else {
+                     camera_id = inResponse["deviceList"][0].id ;
+                     //Callback function to call the camera service open API
+                     getOpen();
+                 }
+           }
+         });
+     }
+
+     
+     function getOpen() {
+         //document.getElementById("demo1").innerHTML = "getOpen";
+         //Calling the Camera service open API
+         var request = webOS.service.request("luna://com.webos.service.camera2", {
+             method: "open",
+             parameters: {
+                 "id": camera_id
+             },
+             onFailure: function(inError) {
+                 console.log(JSON.stringify(inError));
+                 //document.getElementById("demo1").innerHTML = "error " + JSON.stringify(inError);
+             },
+             onComplete: function(inResponse) {
+                 console.log(JSON.stringify(inResponse["handle"]));
+                 //document.getElementById("demo1").innerHTML = "camera1 service open success: " + JSON.stringify(inResponse);
+                 //On sucessful return extarcting the value of handle
+                 handle_ = inResponse["handle"];
+                 options.handle_ = inResponse["handle"];
+                 //Callback for setFormat Camera Service API
+                 getSetFormat();
+
+             }
+         });
+     }
+
+     function getSetFormat() {
+         //document.getElementById("demo1").innerHTML = "getSetFormat";
+         //Calling the Camera service setFormat API
+         var request = webOS.service.request("luna://com.webos.service.camera2", {
+             method: "setFormat",
+             parameters: {
+                 "handle": options.handle_,
+                 "params": {
+                     "width": 640,
+                     "height": 480,
+                     "format": "JPEG",
+                     "fps":30
+                 }
+             },
+             onFailure: function(inError) {
+                 console.log(JSON.stringify(inError));
+                 //document.getElementById("demo1").innerHTML = "error " + JSON.stringify(inError);
+             },
+             onComplete: function(inResponse) {
+                 console.log(JSON.stringify(inResponse));
+                 //document.getElementById("demo1").innerHTML = "success " + JSON.stringify(inResponse);
+                 //Callback for start Preview APi of Camera service
+                 startPreview();
+             }
+         });
+     }
+     function startPreview() {
+         //document.getElementById("demo1").innerHTML = "startPreview";
+         //Calling the Camera service startPreview  API
+   var request = webOS.service.request("luna://com.webos.service.camera2", {
+       method:"startPreview",
+       parameters:{"handle":options.handle_ , "params":{"type":"sharedmemory","source":"0" }},
+       onFailure: function(inError) {
+           console.log(JSON.stringify(inError));
+       },
+       onComplete: function(inResponse) {
+           console.log(JSON.stringify(inResponse));
+           options.memsrc = inResponse["key"]; //assigning shared memory key
+                // Callback for calling load function for loading ca,era pipeline
+                playWithCamSrc();
+       }
+   });
+     }
+
+      function startCapture() {
+         //document.getElementById("demo1").innerHTML = "startCapture";
+         document.getElementById("imagePlace").src = "image1.jpeg";
+         var request = webOS.service.request("luna://com.webos.media", {
+             method: "takeCameraSnapshot",
+             parameters: {
+                 "mediaId": media_id,
+                 "location":"/tmp/",
+                 "format" :"jpg", 
+                 "width" : 840,
+                 "height":630,
+                 "pictureQuality":30,
+             },
+             onFailure: function(inError) {
+                 console.log(JSON.stringify(inError));
+                 //document.getElementById("demo1").innerHTML = "error " + JSON.stringify(inError);
+             },
+             onComplete: function(inResponse) {
+                 console.log(JSON.stringify(inResponse));
+                 //document.getElementById("demo1").innerHTML = "success : [file:///tmp/capture.jpeg]";
+
+                 document.getElementById("imagePlace").src = "/tmp/capture.jpeg_timestamp=" + new Date().getTime();
+                 console.log("image src: " + document.getElementById("imagePlace").src);
+             }
+         });
+     }
+
+     function close() {
+         //document.getElementById("demo1").innerHTML = "close";
+         var request = webOS.service.request("luna://com.webos.service.camera2", {
+             method: "close",
+             parameters: {
+                 "handle": handle_
+             },
+             onFailure: function(inError) {
+                 console.log(JSON.stringify(inError));
+                 //document.getElementById("demo1").innerHTML = "error " + JSON.stringify(inError);
+             },
+             onComplete: function(inResponse) {
+                 console.log(JSON.stringify(inResponse));
+                 //document.getElementById("demo1").innerHTML = "success " + JSON.stringify(inResponse);
+             }
+         });
+     }
+
+     function playWithCamSrc() {
+        console.log("playWithCamSrc called");
+         var cameraOptions = escape(JSON.stringify(options));
+
+         var sourceElt = document.getElementById("cameraSource");
+         sourceElt.setAttribute('src', uri1);
+         sourceElt.setAttribute('type', 'service/webos-camera;cameraOption=' + cameraOptions);
+
+         document.getElementById("cameraVideo").load();
+     }
+
+     function updateVideoElement() {
+         var cameraVideo = document.getElementById("cameraVideo");
+         if (cameraVideo) {
+             if (isPlayingSHM)
+                 return;
+             console.log("updateVideoElement:: " + cameraVideo);
+         } else {
+             console.log("updateVideoElement:: No oldVideo element present");
+         }
+
+         var sourceElt = document.createElement("source");
+         sourceElt.setAttribute("src", " ");
+         document.getElementById("cameraVideo").load();
+
+         if (!eventListenerAdded) {
+             eventListenerAdded = true;
+             cameraVideo.addEventListener("updatecamerastate", function (e) {
+                 var obj = JSON.parse(e.detail);
+
+                 console.log("detail msg :: " + obj.mediaId);
+                 
+                 media_id = obj.mediaId;
+                 console.log("media_id: " + media_id);
+             }, false);
+         
+         }
+     }
+
+     function init() {
+        updateVideoElement();
+        var selectElt = document.getElementById("testMode");
+        var strUser = selectElt.options[selectElt.selectedIndex].value;
+        if (strUser == "camsrc") {
+            if (isPlayingSHM) {
+                document.getElementById("demo1").innerHTML = "";
+                //stopPreview();
+                isPlayingSHM = false;
+            }
+            options.memType = "device";
+            options.memSrc =  "/dev/video0";
+            playWithCamSrc();
+        } else /*if (strUser == "camshm")*/ {
+            options.memType = "shmem";
+            options.memSrc =  "7010";
+            playWithCamSHM();
+            isPlayingSHM = true;
+        }
+     }
+
+     var passwd = 1234;
+        var initial = 0;
+        var digit = 1000;
+        function reply_click(clicked_value) {
+            // alert(clicked_id);
+            if (clicked_value == 10)
+                compare_pwd();
+
+
+            console.log(clicked_value);
+            initial += clicked_value * digit;
+            digit /= 10;
+        }
+        function compare_pwd() {
+            console.log(passwd);
+            console.log(initial);
+            if (passwd == initial)
+            {
+                console.log("correct");
+                document.getElementById("demo1").innerHTML = "correct number";
+            }
+                
+            else
+            {
+                console.log("wrong");
+                document.getElementById("demo1").innerHTML = "wrong number";
+            }
+                
+        }
+ </script>
+</head>
+
+<body style="background-color:black;" onload="init();">
+    <div style="height:10%; float:top;">
+   <h1 align="center"> Smart DoorLock Using Face Detection </h1>
+    </div>
+    <div align="center" style="display:none">
+        <select id="testMode">
+            <option value="camshm"> Test LG Camera SHM </option>
+            <option value="camsrc"> Test LG Camera SRC </option>
+        </select>
+    </div>
+    <br>
+    <div align="center">
+        <video id="cameraVideo">
+            <source id="cameraSource" src="uri1" type="service/webos-camera">
+        </video>
+        <img id="imagePlace" src="image1.jpeg" style = "display:none"> </img>
+        <center>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=1
+                onclick="reply_click(this.value)">1</button>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=2
+                onclick="reply_click(this.value)">2</button>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=3
+                onclick="reply_click(this.value)">3</button>
+        </center>
+
+        <center>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=4
+                onclick="reply_click(this.value)">4</button>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=5
+                onclick="reply_click(this.value)">5</button>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=6
+                onclick="reply_click(this.value)">6</button>
+        </center>
+
+        <center>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=7
+                onclick="reply_click(this.value)">7</button>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=8
+                onclick="reply_click(this.value)">8</button>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=9
+                onclick="reply_click(this.value)">9</button>
+        </center>
+
+        <center>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;"
+                onclick="startCapture()">*</button> <!-- *을 누르면 capture -->
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;" value=0
+                onclick="reply_click(this.value)">0</button>
+            <button style="color: #fff; background:black; font-size:2em; border-radius:0.5em; padding:5px 20px;"
+                value=10 onclick="reply_click(this.value)">#</button> <!-- #을 누르면 입력 종료-->
+        </center>
+    </div>
+    <br>
+    <div id="statusText" align="center">
+        <p id="demo1" style="color:white"> </p>
+    </div>
+</body>
+
+</html>
